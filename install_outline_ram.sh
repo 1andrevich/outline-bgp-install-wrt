@@ -1,7 +1,7 @@
 #!/bin/sh
 # Outline scripted, xjasonlyu/tun2socks based installer for OpenWRT (RAM).
-# https://github.com/1andrevich/outline-install-wrt
-echo 'Starting Outline OpenWRT install to RAM script'
+# https://github.com/1andrevich/outline-bgp-install-wrt
+echo 'Starting Outline + Antifilter BGP OpenWRT install to RAM script'
 
 # Step 1: Check for kmod-tun
 opkg list-installed | grep kmod-tun > /dev/null
@@ -19,7 +19,14 @@ if [ $? -ne 0 ]; then
     echo 'ip-full installed'
 fi
 
-# Step 3: Check for tun2socks then download tun2socks binary from GitHub (to RAM)
+# Step 3: Check for bird2c
+opkg list-installed | grep bird2c > /dev/null
+if [ $? -ne 0 ]; then
+    echo "bird2c is not installed. Exiting."
+    exit 1
+    echo 'bird2c installed'                                                                                            fi 
+
+# Step 4: Check for tun2socks then download tun2socks binary from GitHub (to RAM)
 if [ ! -f "/tmp/tun2socks*" ]; then
 ARCH=$(grep "OPENWRT_ARCH" /etc/os-release | awk -F '"' '{print $2}')
 wget https://github.com/1andrevich/outline-install-wrt/releases/download/v2.5.1/tun2socks-linux-$ARCH -O /tmp/tun2socks
@@ -29,10 +36,10 @@ wget https://github.com/1andrevich/outline-install-wrt/releases/download/v2.5.1/
         exit 1
    fi
 fi
-# Step 4: Executing chmod +x command
+# Step 5: Executing chmod +x command
 chmod +x /tmp/tun2socks
 
-# Step 5: Check for existing config in /etc/config/network then add entry
+# Step 6: Check for existing config in /etc/config/network then add entry
 if ! grep -q "config interface 'tunnel'" /etc/config/network; then
 echo "
 config interface 'tunnel'
@@ -45,7 +52,7 @@ config interface 'tunnel'
 fi
 echo 'found entry into /etc/config/network'
 
-# Step 6:Check for existing config /etc/config/firewall then add entry
+# Step 7:Check for existing config /etc/config/firewall then add entry
 if ! grep -q "option name 'proxy'" /etc/config/firewall; then 
 echo "
 config zone
@@ -69,24 +76,24 @@ config forwarding
 fi
 
 echo 'found entry into /etc/config/firewall'
-# Step 7: Restart network
+# Step 8: Restart network
 /etc/init.d/network restart
 echo 'Restarting Network....'
 
-# Step 8: Read user variable for OUTLINE HOST IP
+# Step 9: Read user variable for OUTLINE HOST IP
 read -p "Enter Outline Server IP: " OUTLINEIP
 # Read user variable for Outline config
 read -p "Enter Outline (Shadowsocks) Config (format ss://base64coded@HOST:PORT/?outline=1): " OUTLINECONF
 
-#Step 9. Check for default gateway and save it into DEFGW
+#Step 10. Check for default gateway and save it into DEFGW
 DEFGW=$(ip route | grep default | awk '{print $3}')
 echo 'checked default gateway'
 
-#Step 10. Check for default interface and save it into DEFIF
+#Step 11. Check for default interface and save it into DEFIF
 DEFIF=$(ip route | grep default | awk '{print $5}')
 echo 'checked default interface'
 
-# Step 11: Create script /etc/init.d/tun2socks
+# Step 12: Create script /etc/init.d/tun2socks
 if [ ! -f "/etc/init.d/tun2socks" ]; then
 cat <<EOL > /etc/init.d/tun2socks
 #!/bin/sh /etc/rc.common
@@ -157,25 +164,6 @@ reload_service() {
     start
 }
 EOL
-DEFAULT_GATEWAY=""
-#Ask user to use Outline as default gateway
-while [ "$DEFAULT_GATEWAY" != "y" ] && [ "$DEFAULT_GATEWAY" != "n" ]; do
-    echo "Use Outline as default gateway? [y/n]: "
-    read DEFAULT_GATEWAY
-done
-
-if [ "$DEFAULT_GATEWAY" = "y" ]; then
-		cat <<EOL >> /etc/init.d/tun2socks
-#Replaces default route for Outline
-service_started() {
-    # This function checks if the default gateway is Outline, if no changes it
-     echo 'Replacing default gateway for Outline...'
-     sleep 2s
-     if ip link show tun1 | grep -q "UP" ; then
-         ip route del default #Deletes existing default route
-         ip route add default via 172.16.10.2 dev tun1 #Creates default route through the proxy
-     fi
-}
 start() {
     start_service
     service_started
@@ -207,13 +195,13 @@ echo 'script /etc/init.d/tun2socks created'
 chmod +x /etc/init.d/tun2socks
 fi
 
-# Step 12: Create symbolic link, autostart
+# Step 13: Create symbolic link, autostart
 if [ ! -f "/etc/rc.d/S99tun2socks" ]; then
 ln -s /etc/init.d/tun2socks /etc/rc.d/S99tun2socks
 echo '/etc/init.d/tun2socks /etc/rc.d/S99tun2socks symlink created'
 fi
 
-# Step 13: Start service
+# Step 14: Start service
 /etc/init.d/tun2socks start
 
 echo 'Script finished'
