@@ -204,7 +204,8 @@ fi
 
 #First we make /etc/bird.conf empty:
 echo -n "" > /etc/bird.conf
-ASN=$((64512 + RANDOM % 20))
+RANDOM_SEED=$(cat /dev/urandom | tr -dc '0-9' | head -c 5)
+ASN=$((64512 + RANDOM_SEED % 20))
 #Then we create new config based on previous data
 cat <<EOL >> /etc/bird.conf
 log syslog all;
@@ -259,4 +260,4 @@ traceroute_output=$(traceroute -m1 facebook.com)
 echo "Traceroute to facebook.com:"
 echo "$traceroute_output"
 
-echo 'Script has finished'
+echo "Script has finished"
