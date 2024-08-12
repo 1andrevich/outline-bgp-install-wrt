@@ -120,7 +120,7 @@ cat <<EOL > /etc/init.d/tun2socks
 USE_PROCD=1
 
 # starts after network starts
-START=99
+START=69
 # stops before networking stops
 STOP=89
 
@@ -147,6 +147,18 @@ chmod +x /tmp/tun2socks
 
 start_service() {
     before_start
+	
+	# Wait for /tmp/tun2socks to exist, with a timeout of 30 seconds
+    timeout=30
+    while [ ! -f "/tmp/tun2socks" ]; do
+        sleep 1
+        timeout=$((timeout - 1))
+        if [ $timeout -le 0 ]; then
+            echo "/tmp/tun2socks not found after 30 seconds. Exiting."
+            exit 1
+        fi
+    done
+	
     procd_open_instance
     procd_set_param user root
     procd_set_param command /tmp/tun2socks -device tun1 -tcp-rcvbuf 64kb -tcp-sndbuf 64kb  -proxy "$OUTLINECONF" -loglevel "warning"
