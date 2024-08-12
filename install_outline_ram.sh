@@ -1,7 +1,7 @@
 #!/bin/sh
 # Outline scripted, xjasonlyu/tun2socks based installer for OpenWRT (RAM).
 # https://github.com/1andrevich/outline-bgp-install-wrt
-echo 'Starting Outline + Antifilter BGP OpenWRT install to RAM script'
+echo 'Starting Shadowsocks + Antifilter BGP OpenWRT install to RAM script'
 
 # Step 1: Check for kmod-tun
 opkg list-installed | grep kmod-tun > /dev/null
@@ -80,10 +80,27 @@ echo 'found entry into /etc/config/firewall'
 /etc/init.d/network restart
 echo 'Restarting Network....'
 
-# Step 9: Read user variable for OUTLINE HOST IP
-read -p "Enter Outline Server IP: " OUTLINEIP
-# Read user variable for Outline config
+sleep 2
+
+# Step 9: Read user variable for Outline config
 read -p "Enter Outline (Shadowsocks) Config (format ss://base64coded@HOST:PORT/?outline=1): " OUTLINECONF
+# Extract the domain/hostname part from the link using sed
+domain_or_ip=$(echo $OUTLINECONF | sed 's/.*@\(.*\):.*/\1/')
+
+# Check if the extracted string is an IP address or a domain name
+if echo "$domain_or_ip" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+    # It's an IP address
+    echo "IP of Outline Server is: $domain_or_ip"
+else
+    # It's a domain name, resolve it to an IP address using ping
+    resolved_ip=$(ping -c 1 $domain_or_ip | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -n 1)
+    if [ -n "$resolved_ip" ]; then
+        echo "Resolved IP for Outline Server is $domain_or_ip: $resolved_ip"
+    else
+        echo "Failed to resolve IP for domain $domain_or_ip . Check DNS settings and re-run the script"
+		exit 1  # Halt the script with a non-zero exit status
+    fi
+fi
 
 #Step 10. Check for default gateway and save it into DEFGW
 DEFGW=$(ip route | grep default | awk '{print $3}')
@@ -114,7 +131,7 @@ STOP=89
 before_start() {
 if [ ! -f "/tmp/tun2socks*" ]; then
   ARCH=$(grep "OPENWRT_ARCH" /etc/os-release | awk -F '"' '{print $2}')
-  wget https://github.com/1andrevich/outline-install-wrt/releases/download/v2.5.1/tun2socks-linux-$ARCH -O /tmp/tun2socks
+  wget https://github.com/1andrevich/outline-bgp-install-wrt/releases/download/v2.5.1/tun2socks-linux-$ARCH -O /tmp/tun2socks
  # Check wget's exit status
     if [ $? -ne 0 ]; then
         echo "Download failed. No file for your Router's architecture"
@@ -136,6 +153,8 @@ start_service() {
     procd_close_instance
     ip route add "$OUTLINEIP" via "$DEFGW" #Adds route to OUTLINE Server
 	echo 'route to Outline Server added'
+	ip route add 45.154.73.71 via 172.16.10.2 dev tun1
+	echo 'route to Antifilter BGP server through Shadowsocks added'
     ip route save default > /tmp/defroute.save  #Saves existing default route
     echo "tun2socks is working!"
 }
@@ -169,29 +188,6 @@ start() {
     service_started
 }
 EOL
-#Checks rc.local and adds script to rc.local to check default route on startup
-if ! grep -q "sleep 10" /etc/rc.local; then
-sed '/exit 0/i\
-sleep 10\
-#Check if default route is through Outline and change if not\
-if ! ip route | grep -q '\''^default via 172.16.10.2 dev tun1'\''; then\
-    /etc/init.d/tun2socks start\
-fi\
-' /etc/rc.local > /tmp/rc.local.tmp && mv /tmp/rc.local.tmp /etc/rc.local
-		echo "All traffic would be routed through Outline"
-fi
-	else
-		cat <<EOL >> /etc/init.d/tun2socks
-start() {
-    before_start
-    start_service
-}
-EOL
-		echo "No changes to default gateway"
-fi
-
-echo 'script /etc/init.d/tun2socks created'
-
 chmod +x /etc/init.d/tun2socks
 fi
 
@@ -204,4 +200,62 @@ fi
 # Step 14: Start service
 /etc/init.d/tun2socks start
 
-echo 'Script finished'
+#Step 15: Create config for bird2 BGP Client (Antifilter)
+
+#First we make /etc/bird.conf empty:
+echo -n "" > /etc/bird.conf
+ASN=$((64512 + RANDOM % 20))
+#Then we create new config based on previous data
+cat <<EOL >> /etc/bird.conf
+log syslog all;
+log stderr all;
+
+router id $resolved_ip;
+
+protocol device {
+    scan time 300;
+}
+
+protocol kernel kernel_routes {
+    scan time 60;
+    ipv4 {
+        import none;
+        export all;
+    };
+}
+
+protocol bgp antifilter {
+    ipv4 {
+        import filter {
+            ifname = "tun1";
+            accept;
+        };
+        export none;
+    };
+    local as $ASN;
+    neighbor 45.154.73.71 as 65432;
+    multihop;
+    hold time 240;
+}
+EOL
+#Restarting bird2 service to apply new configuration
+service bird restart
+echo 'Bird2 restarted'
+# Check the number of 'Import updates' from the bird2 show protocols
+import_updates=$(birdc show protocols all antifilter | grep 'Import updates' | awk '{print $3}')
+
+if [ -z "$import_updates" ]; then
+    echo "Error: No import updates found."
+    exit 1  # Halt the script with a failure status
+else
+    echo "Antifilter BGP is working with $import_updates import updates."
+fi	
+
+# Diagnostics: Run traceroute to facebook.com and capture the output
+traceroute_output=$(traceroute -m1 facebook.com)
+
+# Display the traceroute output to the user
+echo "Traceroute to facebook.com:"
+echo "$traceroute_output"
+
+echo 'Script has finished'
