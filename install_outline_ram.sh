@@ -132,32 +132,55 @@ STOP=89
 
 #Check for tun2socks then download tun2socks binary from GitHub to RAM
 before_start() {
-if [ ! -f "/tmp/tun2socks*" ]; then
-  ARCH=$(grep "OPENWRT_ARCH" /etc/os-release | awk -F '"' '{print $2}')
-  wget https://github.com/1andrevich/outline-install-wrt/releases/download/v2.5.1/tun2socks-linux-$ARCH -O /tmp/tun2socks
- # Check wget's exit status
-    if [ $? -ne 0 ]; then
-        echo "Download failed. No file for your Router's architecture"
-        exit 1
-   fi
-fi
-#Executing chmod +x command
-chmod +x /tmp/tun2socks
-}
+    attempts=0
+    max_attempts=5
 
+    while [ $attempts -lt $max_attempts ]; do
+        if [ ! -f "/tmp/tun2socks" ]; then
+            ARCH=$(grep "OPENWRT_ARCH" /etc/os-release | awk -F '"' '{print $2}')
+            wget https://github.com/1andrevich/outline-install-wrt/releases/download/v2.5.1/tun2socks-linux-$ARCH -O /tmp/tun2socks
+            # Check wget's exit status
+            if [ $? -ne 0 ]; then
+                echo "Download failed. No file for your Router's architecture. Attempt $((attempts + 1)) of $max_attempts failed."
+            else
+                # Executing chmod +x command only if wget is successful
+                chmod +x /tmp/tun2socks
+                echo "/tmp/tun2socks downloaded and made executable."
+                return 0  # Exit the function successfully
+            fi
+        else
+            echo "/tmp/tun2socks already exists."
+            return 0  # Exit the function successfully
+        fi
+
+        attempts=$((attempts + 1))
+        echo "Retrying in 5 seconds... ($attempts/$max_attempts)"
+        sleep 5
+    done
+
+    echo "Failed to download /tmp/tun2socks after $max_attempts attempts. Aborting."
+    exit 1  # Exit the script with an error
+}
 start_service() {
     before_start
-	
-	# Wait for /tmp/tun2socks to exist, with a timeout of 30 seconds
+    # Wait for /tmp/tun2socks to exist, with a timeout of 30 seconds
     timeout=30
     while [ ! -f "/tmp/tun2socks" ]; do
         sleep 1
         timeout=$((timeout - 1))
+        
+        echo "Current timeout value: $timeout"  # Debugging line
+
         if [ "$timeout" -le 0 ]; then
-            echo "/tmp/tun2socks not found after 30 seconds. Exiting."
-            exit 1
+            echo "/tmp/tun2socks not found after 30 seconds. Try manually restarting tun2socks service. Exiting."
+            break  # Exit the loop when timeout reaches 0
         fi
     done
+
+    # After the loop, check if it exited due to timeout reaching 0
+    if [ "$timeout" -le 0 ]; then
+        exit 1
+    fi
 	
     procd_open_instance
     procd_set_param user root
@@ -169,14 +192,15 @@ start_service() {
     ip route add "$OUTLINEIP" via "$DEFGW" #Adds route to OUTLINE Server
 	echo 'route to Outline Server added'
     echo "tun2socks is working!"
+	sleep 1
+	# Add route for Antifilter BGP
+    ip route add 45.154.73.71 dev tun1
+    echo 'route to Antifilter BGP server through Shadowsocks added'
 }
 
 boot() {
     # This gets run at boot-time.
     start
-	#Add route for Antifilter BGP
-	ip route add 45.154.73.71 dev tun1
-	echo 'route to Antifilter BGP server through Shadowsocks added'
 }
 
 shutdown() {
@@ -282,11 +306,17 @@ else
 fi	
 
 # Diagnostics: Run traceroute to facebook.com and capture the output
-ping_output=$( ping -4 -w2 facebook.com)
+ping_output_fb=$( ping -4 -w2 facebook.com)
+ping_output_yt=$( ping -4 -w2 youtube.com)
+ping_output_tw=$( ping -4 -w2 x.com)
 
 # Display the traceroute output to the user
 echo "Ping to facebook.com:"
-echo "$ping_output"
+echo "$ping_output_fb"
+echo "Ping to youtube.com:"
+echo "$ping_output_yt"
+echo "Ping to x.com (Twitter):"
+echo "$ping_output_tw"
 echo "If time is less then 0.5ms it means that Tunneling is working"
 
-echo 'Script has finished'
+echo 'Script has finished working'
