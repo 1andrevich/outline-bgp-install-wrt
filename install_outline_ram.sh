@@ -25,6 +25,7 @@ if [ $? -ne 0 ]; then
     echo "bird2c is not installed. Exiting."
     exit 1
     echo 'bird2c installed'                                                                                            fi 
+fi
 
 # Step 4: Check for tun2socks then download tun2socks binary from GitHub (to RAM)
 if [ ! -f "/tmp/tun2socks*" ]; then
@@ -131,7 +132,7 @@ STOP=89
 before_start() {
 if [ ! -f "/tmp/tun2socks*" ]; then
   ARCH=$(grep "OPENWRT_ARCH" /etc/os-release | awk -F '"' '{print $2}')
-  wget https://github.com/1andrevich/outline-bgp-install-wrt/releases/download/v2.5.1/tun2socks-linux-$ARCH -O /tmp/tun2socks
+  wget https://github.com/1andrevich/outline-install-wrt/releases/download/v2.5.1/tun2socks-linux-$ARCH -O /tmp/tun2socks
  # Check wget's exit status
     if [ $? -ne 0 ]; then
         echo "Download failed. No file for your Router's architecture"
@@ -259,7 +260,5 @@ traceroute_output=$(traceroute -m1 facebook.com)
 # Display the traceroute output to the user
 echo "Traceroute to facebook.com:"
 echo "$traceroute_output"
-
-fi
 
 echo 'Script has finished'
