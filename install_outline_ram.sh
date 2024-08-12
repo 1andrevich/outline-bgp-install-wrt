@@ -156,8 +156,6 @@ start_service() {
     procd_close_instance
     ip route add "$OUTLINEIP" via "$DEFGW" #Adds route to OUTLINE Server
 	echo 'route to Outline Server added'
-	ip route add 45.154.73.71 dev tun1
-	echo 'route to Antifilter BGP server through Shadowsocks added'
     ip route save default > /tmp/defroute.save  #Saves existing default route
     echo "tun2socks is working!"
 }
@@ -165,6 +163,9 @@ start_service() {
 boot() {
     # This gets run at boot-time.
     start
+	#Add route for Antifilter BGP
+	ip route add 45.154.73.71 dev tun1
+	echo 'route to Antifilter BGP server through Shadowsocks added'
 }
 
 shutdown() {
@@ -271,10 +272,11 @@ else
 fi	
 
 # Diagnostics: Run traceroute to facebook.com and capture the output
-traceroute_output=$(traceroute -m1 facebook.com)
+ping_output=$( ping -4 -w2 facebook.com)
 
 # Display the traceroute output to the user
-echo "Traceroute to facebook.com:"
-echo "$traceroute_output"
+echo "Ping to facebook.com:"
+echo "$ping_output"
+echo "If time is less then 0.5ms it means that Tunneling is working"
 
 echo 'Script has finished'
