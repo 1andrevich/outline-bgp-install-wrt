@@ -238,6 +238,7 @@ protocol bgp antifilter {
     hold time 240;
 }
 EOL
+
 #Restarting bird2 service to apply new configuration
 service bird restart
 echo 'Bird2 restarted'
