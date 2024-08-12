@@ -156,7 +156,7 @@ start_service() {
     procd_close_instance
     ip route add "$OUTLINEIP" via "$DEFGW" #Adds route to OUTLINE Server
 	echo 'route to Outline Server added'
-	ip route add 45.154.73.71 via 172.16.10.2 dev tun1
+	ip route add 45.154.73.71 dev tun1
 	echo 'route to Antifilter BGP server through Shadowsocks added'
     ip route save default > /tmp/defroute.save  #Saves existing default route
     echo "tun2socks is working!"
@@ -176,7 +176,7 @@ stop_service() {
     service_stop /tmp/tun2socks
     ip route restore default < /tmp/defroute.save #Restores saved default route
     ip route del "$OUTLINEIP" via "$DEFGW" #Removes route to OUTLINE Server
-	ip route del 45.154.73.71 via 172.16.10.2 dev tun1
+	ip route del 45.154.73.71 dev tun1
 	echo 'route to Antifilter BGP server through Shadowsocks deleted'
     echo "tun2socks has stopped!"
 }
@@ -210,8 +210,8 @@ echo 'Starting tun2socks service'
 echo 'Creating config for Antifilter client'
 
 #First we make /etc/bird.conf empty:
-service bird stop #Stopping bird2
-echo 'Stopping bird2 BGP service'
+#service bird stop #Stopping bird2
+#echo 'Stopping bird2 BGP service'
 echo -n "" > /etc/bird.conf
 echo 'Clearing /etc/bird.conf file'
 RANDOM_SEED=$(cat /dev/urandom | tr -dc '0-9' | head -c 5)
@@ -219,7 +219,7 @@ ASN=$((64512 + RANDOM_SEED % 20)) #Generate Random ASN number
 echo "Generating ASN Number: $ASN"
 #Then we create new config based on previous data
 #DEBUG
-echo "Outline IP is still $OUTLINEIP"
+#echo "Outline IP is still $OUTLINEIP"
 
 cat <<EOL >> /etc/bird.conf
 log syslog all;
@@ -258,9 +258,11 @@ echo 'new /etc/bird.conf file created'
 #Restarting bird2 service to apply new configuration
 service bird restart
 echo 'Bird2 restarted'
+echo 'Waiting for bird2 to connect to Antifilter.download BGP'
+sleep 7
 # Check the number of 'Import updates' from the bird2 show protocols
 import_updates=$(birdc show protocols all antifilter | grep 'Import updates' | awk '{print $3}')
-
+sleep 1
 if [ -z "$import_updates" ]; then
     echo "Error: No import updates found."
     exit 1  # Halt the script with a failure status
