@@ -204,14 +204,19 @@ fi
 
 # Step 14: Start service
 /etc/init.d/tun2socks start
+echo 'Starting tun2socks service'
 
 #Step 15: Create config for bird2 BGP Client (Antifilter)
+echo 'Creating config for Antifilter client'
 
 #First we make /etc/bird.conf empty:
 service bird stop #Stopping bird2
+echo 'Stopping bird2 BGP service'
 echo -n "" > /etc/bird.conf
+echo 'Clearing /etc/bird.conf file'
 RANDOM_SEED=$(cat /dev/urandom | tr -dc '0-9' | head -c 5)
 ASN=$((64512 + RANDOM_SEED % 20)) #Generate Random ASN number
+echo "Generating ASN Number: $ASN"
 #Then we create new config based on previous data
 #DEBUG
 echo "Outline IP is still $OUTLINEIP"
@@ -248,6 +253,7 @@ protocol bgp antifilter {
     hold time 240;
 }
 EOL
+echo 'new /etc/bird.conf file created'
 
 #Restarting bird2 service to apply new configuration
 service bird restart
