@@ -6,7 +6,7 @@ echo 'Starting Shadowsocks + Antifilter BGP OpenWRT install to RAM script'
 # Step 1: Check for kmod-tun
 opkg list-installed | grep kmod-tun > /dev/null
 if [ $? -ne 0 ]; then
-    echo "kmod-tun is not installed. Exiting."
+    echo "kmod-tun is not installed. Run 'opkg install kmod-tun' to install package. Exiting."
     exit 1
     echo 'kmod-tun installed'
 fi
@@ -14,7 +14,7 @@ fi
 # Step 2: Check for ip-full
 opkg list-installed | grep ip-full > /dev/null
 if [ $? -ne 0 ]; then
-    echo "ip-full is not installed. Exiting."
+    echo "ip-full is not installed. Run 'opkg install ip-full' to install package. Exiting."
     exit 1
     echo 'ip-full installed'
 fi
@@ -22,7 +22,7 @@ fi
 # Step 3: Check for bird2c
 opkg list-installed | grep bird2c > /dev/null
 if [ $? -ne 0 ]; then
-    echo "bird2c is not installed. Exiting."
+    echo "bird2c is not installed. Run 'opkg install bird2c' to install package. Exiting."
     exit 1
     echo 'bird2c installed'                                                                                            fi 
 fi
