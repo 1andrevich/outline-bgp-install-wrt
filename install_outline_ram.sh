@@ -92,11 +92,13 @@ domain_or_ip=$(echo $OUTLINECONF | sed 's/.*@\(.*\):.*/\1/')
 if echo "$domain_or_ip" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
     # It's an IP address
     echo "IP of Outline Server is: $domain_or_ip"
+	OUTLINEIP=$domain_or_ip
 else
     # It's a domain name, resolve it to an IP address using ping
     resolved_ip=$(ping -c 1 $domain_or_ip | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -n 1)
     if [ -n "$resolved_ip" ]; then
         echo "Resolved IP for Outline Server is $domain_or_ip: $resolved_ip"
+		OUTLINEIP=$resolved_ip
     else
         echo "Failed to resolve IP for domain $domain_or_ip . Check DNS settings and re-run the script"
 		exit 1  # Halt the script with a non-zero exit status
@@ -212,7 +214,7 @@ cat <<EOL >> /etc/bird.conf
 log syslog all;
 log stderr all;
 
-router id $resolved_ip;
+router id $resolved_ip ;
 
 protocol device {
     scan time 300;
