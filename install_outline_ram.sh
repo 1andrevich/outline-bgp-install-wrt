@@ -152,7 +152,7 @@ start_service() {
     procd_set_param command /tmp/tun2socks -device tun1 -tcp-rcvbuf 64kb -tcp-sndbuf 64kb  -proxy "$OUTLINECONF" -loglevel "warning"
     procd_set_param stdout 1
     procd_set_param stderr 1
-    procd_set_param respawn '${respawn_threshold:-3600}' '${respawn_timeout:-5}' '${respawn_retry:-5}'
+    procd_set_param respawn '\${respawn_threshold:-3600}' '\${respawn_timeout:-5}' '\${respawn_retry:-5}'
     procd_close_instance
     ip route add "$OUTLINEIP" via "$DEFGW" #Adds route to OUTLINE Server
 	echo 'route to Outline Server added'
@@ -176,7 +176,7 @@ stop_service() {
     service_stop /tmp/tun2socks
     ip route del "$OUTLINEIP" via "$DEFGW" #Removes route to OUTLINE Server
 	ip route del 45.154.73.71 dev tun1
-	echo 'route to Antifilter BGP server through Shadowsocks deleted'
+	#echo 'route to Antifilter BGP server through Shadowsocks deleted'
     echo "tun2socks has stopped!"
 }
 
@@ -258,7 +258,7 @@ echo 'new /etc/bird.conf file created'
 service bird restart
 echo 'Bird2 restarted'
 echo 'Waiting for bird2 to connect to Antifilter.download BGP'
-sleep 7
+sleep 15
 # Check the number of 'Import updates' from the bird2 show protocols
 import_updates=$(birdc show protocols all antifilter | grep 'Import updates' | awk '{print $3}')
 sleep 1
