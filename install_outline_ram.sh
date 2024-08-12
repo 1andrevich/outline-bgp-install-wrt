@@ -135,7 +135,7 @@ before_start() {
     attempts=0
     max_attempts=5
 
-    while [ $attempts -lt $max_attempts ]; do
+    while [ "\$attempts" -lt "\$max_attempts" ]; do
         if [ ! -f "/tmp/tun2socks" ]; then
             ARCH=$(grep "OPENWRT_ARCH" /etc/os-release | awk -F '"' '{print $2}')
             wget https://github.com/1andrevich/outline-install-wrt/releases/download/v2.5.1/tun2socks-linux-$ARCH -O /tmp/tun2socks
@@ -152,13 +152,13 @@ before_start() {
             echo "/tmp/tun2socks already exists."
             return 0  # Exit the function successfully
         fi
-
-        attempts=$((attempts + 1))
+		
+        attempts="\$((attempts + 1))"
         echo "Retrying in 5 seconds... ($attempts/$max_attempts)"
         sleep 5
     done
 
-    echo "Failed to download /tmp/tun2socks after $max_attempts attempts. Aborting."
+    echo "Failed to download /tmp/tun2socks after "\$max_attempts" attempts. Aborting."
     exit 1  # Exit the script with an error
 }
 start_service() {
@@ -167,7 +167,7 @@ start_service() {
     timeout=30
     while [ ! -f "/tmp/tun2socks" ]; do
         sleep 1
-        timeout=$((timeout - 1))
+        timeout="\$((timeout - 1))"
         
         echo "Current timeout value: $timeout"  # Debugging line
 
@@ -232,7 +232,7 @@ chmod +x /etc/init.d/tun2socks
 fi
 
 # Step 13: Create symbolic link, autostart
-if [ ! -f "/etc/rc.d/S99tun2socks" ]; then
+if [ ! -f "/etc/rc.d/S69tun2socks" ]; then
 ln -s /etc/init.d/tun2socks /etc/rc.d/S69tun2socks
 echo '/etc/init.d/tun2socks /etc/rc.d/S69tun2socks symlink created'
 fi
