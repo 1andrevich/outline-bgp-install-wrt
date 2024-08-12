@@ -153,7 +153,7 @@ start_service() {
     while [ ! -f "/tmp/tun2socks" ]; do
         sleep 1
         timeout=$((timeout - 1))
-        if [ $timeout -le 0 ]; then
+        if [ "$timeout" -le 0 ]; then
             echo "/tmp/tun2socks not found after 30 seconds. Exiting."
             exit 1
         fi
@@ -209,8 +209,8 @@ fi
 
 # Step 13: Create symbolic link, autostart
 if [ ! -f "/etc/rc.d/S99tun2socks" ]; then
-ln -s /etc/init.d/tun2socks /etc/rc.d/S99tun2socks
-echo '/etc/init.d/tun2socks /etc/rc.d/S99tun2socks symlink created'
+ln -s /etc/init.d/tun2socks /etc/rc.d/S69tun2socks
+echo '/etc/init.d/tun2socks /etc/rc.d/S69tun2socks symlink created'
 fi
 
 # Step 14: Start service
