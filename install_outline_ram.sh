@@ -260,4 +260,6 @@ traceroute_output=$(traceroute -m1 facebook.com)
 echo "Traceroute to facebook.com:"
 echo "$traceroute_output"
 
-echo "Script has finished"
+fi
+
+echo 'Script has finished'
