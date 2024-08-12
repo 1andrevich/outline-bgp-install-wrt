@@ -77,9 +77,9 @@ config forwarding
 fi
 
 echo 'found entry into /etc/config/firewall'
+echo 'Restarting Network....'
 # Step 8: Restart network
 /etc/init.d/network restart
-echo 'Restarting Network....'
 
 sleep 2
 
@@ -176,6 +176,8 @@ stop_service() {
     service_stop /tmp/tun2socks
     ip route restore default < /tmp/defroute.save #Restores saved default route
     ip route del "$OUTLINEIP" via "$DEFGW" #Removes route to OUTLINE Server
+	ip route del 45.154.73.71 via 172.16.10.2 dev tun1
+	echo 'route to Antifilter BGP server through Shadowsocks deleted'
     echo "tun2socks has stopped!"
 }
 
@@ -206,15 +208,19 @@ fi
 #Step 15: Create config for bird2 BGP Client (Antifilter)
 
 #First we make /etc/bird.conf empty:
+service bird stop #Stopping bird2
 echo -n "" > /etc/bird.conf
 RANDOM_SEED=$(cat /dev/urandom | tr -dc '0-9' | head -c 5)
-ASN=$((64512 + RANDOM_SEED % 20))
+ASN=$((64512 + RANDOM_SEED % 20)) #Generate Random ASN number
 #Then we create new config based on previous data
+#DEBUG
+echo "Outline IP is still $OUTLINEIP"
+
 cat <<EOL >> /etc/bird.conf
 log syslog all;
 log stderr all;
 
-router id $resolved_ip ;
+router id $OUTLINEIP;
 
 protocol device {
     scan time 300;
