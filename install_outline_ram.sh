@@ -5,25 +5,25 @@ echo 'Starting Shadowsocks + Antifilter BGP OpenWRT install to RAM script'
 
 # Step 1: Check for kmod-tun
 if opkg list-installed | grep -q kmod-tun; then
-    echo "\033[0;32m kmod-tun is installed. \033[0m"
+    echo -e "\033[0;32m kmod-tun is installed. \033[0m"
 else
-    echo "\033[0;31m kmod-tun is not installed. Run 'opkg install kmod-tun' to install the package. Exiting. \033[0m"
+    echo -e "\033[0;31m kmod-tun is not installed. Run 'opkg install kmod-tun' to install the package. Exiting. \033[0m"
     exit 1
 fi
 
 # Step 2: Check for ip-full
 if opkg list-installed | grep ip-full; then
-    echo "\033[0;32m ip-full is installed. \033[0m"
+    echo -e "\033[0;32m ip-full is installed. \033[0m"
 else
-    echo "\033[0;31m ip-full is not installed. Run 'opkg install ip-full' to install package. Exiting. \033[0m"
+    echo -e "\033[0;31m ip-full is not installed. Run 'opkg install ip-full' to install package. Exiting. \033[0m"
     exit 1
 fi
 
 # Step 3: Check for bird2c
 if opkg list-installed | grep -q bird2c; then
-    echo "\033[0;32m bird2c is installed. \033[0m"
+    echo -e "\033[0;32m bird2c is installed. \033[0m"
 else
-    echo "\033[0;31m bird2c is not installed. Run 'opkg install bird2c' to install package. Exiting. \033[0m"
+    echo -e "\033[0;31m bird2c is not installed. Run 'opkg install bird2c' to install package. Exiting. \033[0m"
     exit 1
 fi
 
@@ -33,7 +33,7 @@ ARCH=$(grep "OPENWRT_ARCH" /etc/os-release | awk -F '"' '{print $2}')
 wget https://github.com/1andrevich/outline-install-wrt/releases/download/v2.5.1/tun2socks-linux-$ARCH -O /tmp/tun2socks
  # Check wget's exit status
     if [ $? -ne 0 ]; then
-        echo "\033[0;31m Download failed. No file for your Router's architecture \033[0m"
+        echo -e "\033[0;31m Download failed. No file for your Router's architecture \033[0m"
         exit 1
    fi
 fi
@@ -49,7 +49,7 @@ config interface 'tunnel'
     option ipaddr '172.16.10.1'
     option netmask '255.255.255.252'
 " >> /etc/config/network
-    echo '\033[0;32m added entry into /etc/config/network \033[0m'
+    echo -e '\033[0;32m added entry into /etc/config/network \033[0m'
 fi
 echo 'found entry into /etc/config/network'
 
@@ -73,7 +73,7 @@ config forwarding
     option src 'lan'
     option family 'ipv4'
 " >> /etc/config/firewall
-    echo '\033[0;32m added entry into /etc/config/firewall \033[0m'
+    echo -e '\033[0;32m added entry into /etc/config/firewall \033[0m'
 fi
 
 echo 'found entry into /etc/config/firewall'
@@ -100,7 +100,7 @@ else
         echo "Resolved IP for Outline Server is $domain_or_ip: $resolved_ip"
 		OUTLINEIP=$resolved_ip
     else
-        echo "\033[0;31m Failed to resolve IP for domain $domain_or_ip . Check DNS settings and re-run the script \033[0m"
+        echo -e "\033[0;31m Failed to resolve IP for domain $domain_or_ip . Check DNS settings and re-run the script \033[0m"
 		exit 1  # Halt the script with a non-zero exit status
     fi
 fi
@@ -141,11 +141,11 @@ before_start() {
             wget https://github.com/1andrevich/outline-install-wrt/releases/download/v2.5.1/tun2socks-linux-$ARCH -O /tmp/tun2socks
             # Check wget's exit status
             if [ \$? -ne 0 ]; then
-                echo "Download failed. No file for your Router's architecture. Attempt \$((attempts + 1)) of \$max_attempts failed."
+                echo -e "\033[0;31m Download failed. No file for your Router's architecture. Attempt \$((attempts + 1)) of \$max_attempts failed. \033[0m"
             else
                 # Executing chmod +x command only if wget is successful
                 chmod +x /tmp/tun2socks
-                echo "/tmp/tun2socks downloaded and made executable."
+                echo "\033[0;32m /tmp/tun2socks downloaded successfully. \033[0m"
                 return 0  # Exit the function successfully
             fi
         else
@@ -158,7 +158,7 @@ before_start() {
         sleep 5
     done
 
-    echo "\033[0;31m Failed to download /tmp/tun2socks after \$max_attempts attempts. Aborting. \033[0m"
+    echo -e "\033[0;31m Failed to download /tmp/tun2socks after \$max_attempts attempts. Aborting. \033[0m"
     exit 1  # Exit the script with an error
 }
 start_service() {
@@ -172,7 +172,7 @@ start_service() {
         echo "Current timeout value: "\$timeout""  # Debugging line
 
         if [ \$timeout -le 0 ]; then
-            echo "\033[0;31m /tmp/tun2socks not found after 30 seconds. Try manually restarting tun2socks service. Exiting. \033[0m"
+            echo -e "\033[0;31m /tmp/tun2socks not found after 30 seconds. Try manually restarting tun2socks service. Exiting. \033[0m"
             break  # Exit the loop when timeout reaches 0
         fi
     done
@@ -190,8 +190,8 @@ start_service() {
     procd_set_param respawn \${respawn_threshold:-3600} \${respawn_timeout:-5} \${respawn_retry:-5}
     procd_close_instance
     ip route add "$OUTLINEIP" via "$DEFGW" #Adds route to OUTLINE Server
-	echo '\033[0;32m route to Outline Server added \033[0m'
-    echo "\033[0;32m tun2socks is working! \033[0m"
+	echo -e '\033[0;32m route to Outline Server added \033[0m'
+    echo -e "\033[0;32m tun2socks is working! \033[0m"
 }
 
 service_started() {
@@ -201,7 +201,7 @@ service_started() {
     while [ "\$attempts" -lt "\$max_attempts" ]; do
         if ip link show tun1 | grep -q "tun1"; then
             ip route add 45.154.73.71 dev tun1
-            echo '\033[0;32m Route to Antifilter BGP server through Shadowsocks added \033[0m'
+            echo -e '\033[0;32m Route to Antifilter BGP server through Shadowsocks added \033[0m'
             return 0  # Exit the function successfully
         else
             echo "tun1 interface is not up yet. Attempt \$((attempts + 1)) of \$max_attempts. Retrying in 5 seconds..."
@@ -236,7 +236,7 @@ stop_service() {
 reload_service() {
     stop
     sleep 3s
-    echo "\033[0;32m tun2socks restarted! \033[0m"
+    echo -e "\033[0;32m tun2socks restarted! \033[0m"
     start
 }
 
@@ -262,16 +262,12 @@ echo 'Starting tun2socks service'
 echo 'Creating config for Antifilter client'
 
 #First we make /etc/bird.conf empty:
-#service bird stop #Stopping bird2
-#echo 'Stopping bird2 BGP service'
 echo -n "" > /etc/bird.conf
 echo 'Clearing /etc/bird.conf file'
 RANDOM_SEED=$(cat /dev/urandom | tr -dc '0-9' | head -c 5)
 ASN=$((64512 + RANDOM_SEED % 20)) #Generate Random ASN number
 echo "Generating ASN Number: $ASN"
 #Then we create new config based on previous data
-#DEBUG
-#echo "Outline IP is still $OUTLINEIP"
 
 cat <<EOL >> /etc/bird.conf
 log syslog all;
@@ -316,10 +312,10 @@ sleep 15
 import_updates=$(birdc show protocols all antifilter | grep 'Import updates' | awk '{print $3}')
 sleep 1
 if [ -z "$import_updates" ]; then
-    echo "Error: No import updates found."
+    echo -e "\033[0;31m Error: No route import updates found. BGP Server might be not available. \033[0m"
     exit 1  # Halt the script with a failure status
 else
-    echo "Antifilter BGP is working with $import_updates import updates."
+    echo -e "\033[0;32m Antifilter BGP is working with $import_updates routes. \033[0m"
 fi	
 
 # Diagnostics: Run traceroute to facebook.com and capture the output
@@ -334,6 +330,6 @@ echo "Ping to youtube.com:"
 echo "$ping_output_yt"
 echo "Ping to x.com (Twitter):"
 echo "$ping_output_tw"
-echo "If time is less then 0.5ms it means that Tunneling is working"
+echo "If time is less then 0.5ms it means that tunneling is working"
 
-echo 'Script has finished working'
+echo -e "\033[0;32m Script has finished working \033[0m"
