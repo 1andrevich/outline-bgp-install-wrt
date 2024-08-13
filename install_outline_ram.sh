@@ -336,6 +336,6 @@ echo "Ping to youtube.com:"
 echo "$ping_output_yt"
 echo "Ping to x.com (Twitter):"
 echo "$ping_output_tw"
-echo "If time is less then 0.5ms it means that tunneling is working"
+echo "If time is less then 5ms it means that tunneling is working"
 
 echo -e "\033[0;32m Script has finished working \033[0m"
