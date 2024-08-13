@@ -208,7 +208,7 @@ service_started() {
         fi
 
         attempts=\$((attempts + 1))
-        sleep 1
+        sleep 2
     done
 
     echo "Failed to bring up tun1 interface after \$max_attempts attempts. Aborting."
