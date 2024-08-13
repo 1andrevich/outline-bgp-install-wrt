@@ -304,9 +304,14 @@ EOL
 echo 'new /etc/bird.conf file created'
 
 #Restarting bird2 service to apply new configuration
-sleep 3
-service bird restart
-echo 'Bird2 restarted'
+/etc/init.d/bird restart
+
+if [ \$? -eq 0 ]; then
+    echo -e "\033[0;32mBird2 restarted successfully.\033[0m"
+else
+    echo -e "\033[0;31mFailed to restart Bird2. Please check the service status and logs.\033[0m"
+    exit 1
+fi
 echo 'Waiting for bird2 to connect to Antifilter.download BGP'
 sleep 15
 # Check the number of 'Import updates' from the bird2 show protocols
