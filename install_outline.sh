@@ -1,42 +1,70 @@
 #!/bin/sh
-# Outline scripted, xjasonlyu/tun2socks based installer for OpenWRT.
-# https://github.com/1andrevich/outline-install-wrt
-echo 'Starting Outline OpenWRT install script'
+# Shadowsocks scripted, xjasonlyu/tun2socks, bird2 based installer for OpenWRT.
+# https://github.com/1andrevich/outline-bgp-install-wrt
+echo 'Starting Shadowsocks + Antifilter BGP OpenWRT install script'
 
 # Step 1: Check for kmod-tun
-opkg list-installed | grep kmod-tun > /dev/null
-if [ $? -ne 0 ]; then
-    echo "kmod-tun is not installed. Exiting."
+if opkg list-installed | grep -q kmod-tun; then
+    echo -e "\033[0;32m kmod-tun is installed. \033[0m"
+else
+    echo -e "\033[0;31m kmod-tun is not installed. Run 'opkg install kmod-tun' to install the package. Exiting. \033[0m"
     exit 1
-    echo 'kmod-tun installed'
 fi
 
 # Step 2: Check for ip-full
-opkg list-installed | grep ip-full > /dev/null
-if [ $? -ne 0 ]; then
-    echo "ip-full is not installed. Exiting."
+if opkg list-installed | grep ip-full; then
+    echo -e "\033[0;32m ip-full is installed. \033[0m"
+else
+    echo -e "\033[0;31m ip-full is not installed. Run 'opkg install ip-full' to install package. Exiting. \033[0m"
     exit 1
-    echo 'ip-full installed'
 fi
 
-# Step 3: Check for tun2socks then download tun2socks binary from GitHub
+# Step 3: Check for bird2c
+if opkg list-installed | grep -q bird2c; then
+    echo -e "\033[0;32m bird2c is installed. \033[0m"
+else
+    echo -e "\033[0;31m bird2c is not installed. Run 'opkg install bird2c' to install package. Exiting. \033[0m"
+    exit 1
+fi
+
+# On re-run: Check for existing tun2socks service
+if [ -f /etc/init.d/tun2socks ]; then
+    echo -e '\033[0;32m Found /etc/init.d/tun2socks service \033[0m'
+
+    # Check if the service is running
+    if /etc/init.d/tun2socks status | grep -q "running"; then
+        echo -e '\033[0;33m Service tun2socks is running. Stopping and removing it... \033[0m'
+        /etc/init.d/tun2socks stop
+    else
+        echo -e '\033[0;33m Service tun2socks is not running. Removing it... \033[0m'
+    fi
+
+    # Remove the service
+    rm /etc/init.d/tun2socks
+    echo -e '\033[0;32m /etc/init.d/tun2socks service removed \033[0m'
+else
+    echo -e '\033[0;33m /etc/init.d/tun2socks service not found. Continuing... \033[0m'
+fi
+
+
+# Step 4: Check for tun2socks then download tun2socks binary from GitHub (to RAM)
 if [ ! -f "/tmp/tun2socks*" ]; then
 ARCH=$(grep "OPENWRT_ARCH" /etc/os-release | awk -F '"' '{print $2}')
 wget https://github.com/1andrevich/outline-install-wrt/releases/download/v2.5.1/tun2socks-linux-$ARCH -O /tmp/tun2socks
  # Check wget's exit status
     if [ $? -ne 0 ]; then
-        echo "Download failed. No file for your Router's architecture"
+        echo -e "\033[0;31m Download failed. No file for your Router's architecture \033[0m"
         exit 1
    fi
 fi
-# Step 4: Check for tun2socks then move binary to /usr/bin
+# Step 5: Check for tun2socks then move binary to /usr/bin
 if [ ! -f "/usr/bin/tun2socks" ]; then
 mv /tmp/tun2socks /usr/bin/
 echo 'moving tun2socks to /usr/bin'
 chmod +x /usr/bin/tun2socks
 fi
 
-# Step 5: Check for existing config in /etc/config/network then add entry
+# Step 6: Check for existing config in /etc/config/network then add entry
 if ! grep -q "config interface 'tunnel'" /etc/config/network; then
 echo "
 config interface 'tunnel'
@@ -45,11 +73,11 @@ config interface 'tunnel'
     option ipaddr '172.16.10.1'
     option netmask '255.255.255.252'
 " >> /etc/config/network
-    echo 'added entry into /etc/config/network'
+    echo -e '\033[0;32m added entry into /etc/config/network \033[0m'
 fi
 echo 'found entry into /etc/config/network'
 
-# Step 6:Check for existing config /etc/config/firewall then add entry
+# Step 7:Check for existing config /etc/config/firewall then add entry
 if ! grep -q "option name 'proxy'" /etc/config/firewall; then 
 echo "
 config zone
@@ -69,35 +97,54 @@ config forwarding
     option src 'lan'
     option family 'ipv4'
 " >> /etc/config/firewall
-    echo 'added entry into /etc/config/firewall'
+    echo -e '\033[0;32m added entry into /etc/config/firewall \033[0m'
 fi
 
 echo 'found entry into /etc/config/firewall'
-# Step 7: Restart network
-/etc/init.d/network restart
 echo 'Restarting Network....'
+# Step 8: Restart network
+/etc/init.d/network restart
 
-# Step 8: Read user variable for OUTLINE HOST IP
-read -p "Enter Outline Server IP: " OUTLINEIP
-# Read user variable for Outline config
+sleep 2
+
+# Step 9: Read user variable for Outline config
 read -p "Enter Outline (Shadowsocks) Config (format ss://base64coded@HOST:PORT/?outline=1): " OUTLINECONF
+# Extract the domain/hostname part from the link using sed
+domain_or_ip=$(echo $OUTLINECONF | sed 's/.*@\(.*\):.*/\1/')
 
-#Step 9. Check for default gateway and save it into DEFGW
+# Check if the extracted string is an IP address or a domain name
+if echo "$domain_or_ip" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+    # It's an IP address
+    echo "IP of Outline Server is: $domain_or_ip"
+	OUTLINEIP=$domain_or_ip
+else
+    # It's a domain name, resolve it to an IP address using ping
+    resolved_ip=$(ping -c 1 $domain_or_ip | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | head -n 1)
+    if [ -n "$resolved_ip" ]; then
+        echo "Resolved IP for Outline Server is $domain_or_ip: $resolved_ip"
+		OUTLINEIP=$resolved_ip
+    else
+        echo -e "\033[0;31m Failed to resolve IP for domain $domain_or_ip . Check DNS settings and re-run the script \033[0m"
+		exit 1  # Halt the script with a non-zero exit status
+    fi
+fi
+
+#Step 10. Check for default gateway and save it into DEFGW
 DEFGW=$(ip route | grep default | awk '{print $3}')
 echo 'checked default gateway'
 
-#Step 10. Check for default interface and save it into DEFIF
+#Step 11. Check for default interface and save it into DEFIF
 DEFIF=$(ip route | grep default | awk '{print $5}')
 echo 'checked default interface'
 
-# Step 11: Create script /etc/init.d/tun2socks
+# Step 12: Create script /etc/init.d/tun2socks
 if [ ! -f "/etc/init.d/tun2socks" ]; then
 cat <<EOL > /etc/init.d/tun2socks
 #!/bin/sh /etc/rc.common
 USE_PROCD=1
 
 # starts after network starts
-START=99
+START=69
 # stops before networking stops
 STOP=89
 
@@ -107,18 +154,39 @@ STOP=89
 #LOGLEVEL="warning"
 #BUFFER="64kb"
 
+#Check for tun2socks then download tun2socks binary from GitHub
 start_service() {
     procd_open_instance
     procd_set_param user root
     procd_set_param command /usr/bin/tun2socks -device tun1 -tcp-rcvbuf 64kb -tcp-sndbuf 64kb  -proxy "$OUTLINECONF" -loglevel "warning"
     procd_set_param stdout 1
     procd_set_param stderr 1
-    procd_set_param respawn "${respawn_threshold:-3600}" "${respawn_timeout:-5}" "${respawn_retry:-5}"
+    procd_set_param respawn \${respawn_threshold:-3600} \${respawn_timeout:-5} \${respawn_retry:-5}
     procd_close_instance
     ip route add "$OUTLINEIP" via "$DEFGW" #Adds route to OUTLINE Server
-	echo 'route to Outline Server added'
-    ip route save default > /tmp/defroute.save  #Saves existing default route
-    echo "tun2socks is working!"
+	echo -e '\033[0;32m route to Outline Server added \033[0m'
+    echo -e "\033[0;32m tun2socks is working! \033[0m"
+}
+
+service_started() {
+    attempts=0
+    max_attempts=5
+
+    while [ "\$attempts" -lt "\$max_attempts" ]; do
+        if ip link show tun1 | grep -q "tun1"; then
+            ip route add 45.154.73.71 dev tun1
+            echo -e '\033[0;32m Route to Antifilter BGP server through Shadowsocks added \033[0m'
+            return 0  # Exit the function successfully
+        else
+            echo "tun1 interface is not up yet. Attempt \$((attempts + 1)) of \$max_attempts. Retrying in 5 seconds..."
+        fi
+
+        attempts=\$((attempts + 1))
+        sleep 2
+    done
+
+    echo "Failed to bring up tun1 interface after \$max_attempts attempts. Aborting."
+    exit 1  # Exit the script with an error
 }
 
 boot() {
@@ -132,75 +200,116 @@ shutdown() {
 }
 
 stop_service() {
-    service_stop /usr/bin/tun2socks
-    ip route restore default < /tmp/defroute.save #Restores saved default route
+    service_stop /tmp/tun2socks
     ip route del "$OUTLINEIP" via "$DEFGW" #Removes route to OUTLINE Server
+	ip route del 45.154.73.71 dev tun1
+	echo 'route to Antifilter BGP server through Shadowsocks deleted'
     echo "tun2socks has stopped!"
 }
 
 reload_service() {
     stop
     sleep 3s
-    echo "tun2socks restarted!"
+    echo -e "\033[0;32m tun2socks restarted! \033[0m"
     start
 }
-EOL
-DEFAULT_GATEWAY=""
-#Ask user to use Outline as default gateway
-while [ "$DEFAULT_GATEWAY" != "y" ] && [ "$DEFAULT_GATEWAY" != "n" ]; do
-    echo "Use Outline as default gateway? [y/n]: "
-    read DEFAULT_GATEWAY
-done
 
-if [ "$DEFAULT_GATEWAY" = "y" ]; then
-		cat <<EOL >> /etc/init.d/tun2socks
-#Replaces default route for Outline
-service_started() {
-    # This function checks if the default gateway is Outline, if no changes it
-     echo 'Replacing default gateway for Outline...'
-     sleep 2s
-     if ip link show tun1 | grep -q "UP" ; then
-         ip route del default #Deletes existing default route
-         ip route add default via 172.16.10.2 dev tun1 #Creates default route through the proxy
-     fi
-}
 start() {
     start_service
     service_started
 }
 EOL
-#Checks rc.local and adds script to rc.local to check default route on startup
-if ! grep -q "sleep 10" /etc/rc.local; then
-sed '/exit 0/i\
-sleep 10\
-#Check if default route is through Outline and change if not\
-if ! ip route | grep -q '\''^default via 172.16.10.2 dev tun1'\''; then\
-    /etc/init.d/tun2socks start\
-fi\
-' /etc/rc.local > /tmp/rc.local.tmp && mv /tmp/rc.local.tmp /etc/rc.local
-		echo "All traffic would be routed through Outline"
-fi
-	else
-		cat <<EOL >> /etc/init.d/tun2socks
-start() {
-    start_service
-}
-EOL
-		echo "No changes to default gateway"
-fi
-
-echo 'script /etc/init.d/tun2socks created'
-
 chmod +x /etc/init.d/tun2socks
 fi
 
-# Step 12: Create symbolic link
-if [ ! -f "/etc/rc.d/S99tun2socks" ]; then
-ln -s /etc/init.d/tun2socks /etc/rc.d/S99tun2socks
-echo '/etc/init.d/tun2socks /etc/rc.d/S99tun2socks symlink created'
+# Step 13: Create symbolic link, autostart
+if [ ! -f "/etc/rc.d/S69tun2socks" ]; then
+ln -s /etc/init.d/tun2socks /etc/rc.d/S69tun2socks
+echo '/etc/init.d/tun2socks /etc/rc.d/S69tun2socks symlink created'
 fi
 
-# Step 13: Start service
+# Step 14: Start service
 /etc/init.d/tun2socks start
+echo 'Starting tun2socks service'
 
-echo 'Script finished'
+#Step 15: Create config for bird2 BGP Client (Antifilter)
+echo 'Creating config for Antifilter client'
+
+#First we make /etc/bird.conf empty:
+echo -n "" > /etc/bird.conf
+echo 'Clearing /etc/bird.conf file'
+RANDOM_SEED=$(cat /dev/urandom | tr -dc '0-9' | head -c 5)
+ASN=$((64512 + RANDOM_SEED % 20)) #Generate Random ASN number
+echo "Generating ASN Number: $ASN"
+#Then we create new config based on previous data
+
+cat <<EOL >> /etc/bird.conf
+log syslog all;
+log stderr all;
+
+router id $OUTLINEIP;
+
+protocol device {
+    scan time 300;
+}
+
+protocol kernel kernel_routes {
+    scan time 60;
+    ipv4 {
+        import none;
+        export all;
+    };
+}
+
+protocol bgp antifilter {
+    ipv4 {
+        import filter {
+            ifname = "tun1";
+            accept;
+        };
+        export none;
+    };
+    local as $ASN;
+    neighbor 45.154.73.71 as 65432;
+    multihop;
+    hold time 240;
+}
+EOL
+echo 'new /etc/bird.conf file created'
+
+#Restarting bird2 service to apply new configuration
+/etc/init.d/bird restart
+
+if [ $? -eq 0 ]; then
+    echo -e "\033[0;32mBird2 restarted successfully.\033[0m"
+else
+    echo -e "\033[0;31mFailed to restart Bird2. Please check the service status and logs.\033[0m"
+    exit 1
+fi
+echo 'Waiting for bird2 to connect to Antifilter.download BGP'
+sleep 15
+# Check the number of 'Import updates' from the bird2 show protocols
+import_updates=$(birdc show protocols all antifilter | grep 'Import updates' | awk '{print $3}')
+sleep 1
+if [ -z "$import_updates" ]; then
+    echo -e "\033[0;31m Error: No route import updates found. BGP Server might be not available. \033[0m"
+    exit 1  # Halt the script with a failure status
+else
+    echo -e "\033[0;32m Antifilter BGP is working with $import_updates routes. \033[0m"
+fi	
+
+# Diagnostics: Run traceroute to facebook.com and capture the output
+ping_output_fb=$( ping -4 -w2 facebook.com)
+ping_output_yt=$( ping -4 -w2 youtube.com)
+ping_output_tw=$( ping -4 -w2 x.com)
+
+# Display the traceroute output to the user
+echo "Ping to facebook.com:"
+echo "$ping_output_fb"
+echo "Ping to youtube.com:"
+echo "$ping_output_yt"
+echo "Ping to x.com (Twitter):"
+echo "$ping_output_tw"
+echo "If time is less then 5ms it means that tunneling is working"
+
+echo -e "\033[0;32m Script has finished working \033[0m"
