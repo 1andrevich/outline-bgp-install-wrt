@@ -194,12 +194,12 @@ start_service() {
     echo "tun2socks is working!"
 }
 
-after_start() {
+service_started() {
     attempts=0
     max_attempts=5
 
     while [ "\$attempts" -lt "\$max_attempts" ]; do
-        if ip link show tun1 | grep -q "state UP"; then
+        if ip link show tun1 | grep -q "tun1"; then
             ip route add 45.154.73.71 dev tun1
             echo 'Route to Antifilter BGP server through Shadowsocks added'
             return 0  # Exit the function successfully
@@ -218,7 +218,6 @@ after_start() {
 boot() {
     # This gets run at boot-time.
     start
-	after_start
 }
 
 shutdown() {
@@ -239,9 +238,8 @@ reload_service() {
     sleep 3s
     echo "tun2socks restarted!"
     start
-	after_start
 }
-EOL
+
 start() {
     start_service
     service_started
