@@ -304,6 +304,7 @@ EOL
 echo 'new /etc/bird.conf file created'
 
 #Restarting bird2 service to apply new configuration
+sleep 3
 service bird restart
 echo 'Bird2 restarted'
 echo 'Waiting for bird2 to connect to Antifilter.download BGP'
