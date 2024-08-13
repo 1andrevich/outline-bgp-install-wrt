@@ -27,6 +27,26 @@ else
     exit 1
 fi
 
+# On re-run: Check for existing tun2socks service
+if [ -f /etc/init.d/tun2socks ]; then
+    echo -e '\033[0;32m Found /etc/init.d/tun2socks service \033[0m'
+
+    # Check if the service is running
+    if /etc/init.d/tun2socks status | grep -q "running"; then
+        echo -e '\033[0;33m Service tun2socks is running. Stopping and removing it... \033[0m'
+        /etc/init.d/tun2socks stop
+    else
+        echo -e '\033[0;33m Service tun2socks is not running. Removing it... \033[0m'
+    fi
+
+    # Remove the service
+    rm /etc/init.d/tun2socks
+    echo -e '\033[0;32m /etc/init.d/tun2socks service removed \033[0m'
+else
+    echo -e '\033[0;33m /etc/init.d/tun2socks service not found. Continuing... \033[0m'
+fi
+
+
 # Step 4: Check for tun2socks then download tun2socks binary from GitHub (to RAM)
 if [ ! -f "/tmp/tun2socks*" ]; then
 ARCH=$(grep "OPENWRT_ARCH" /etc/os-release | awk -F '"' '{print $2}')
