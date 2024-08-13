@@ -140,8 +140,8 @@ before_start() {
             ARCH=$(grep "OPENWRT_ARCH" /etc/os-release | awk -F '"' '{print $2}')
             wget https://github.com/1andrevich/outline-install-wrt/releases/download/v2.5.1/tun2socks-linux-$ARCH -O /tmp/tun2socks
             # Check wget's exit status
-            if [ $? -ne 0 ]; then
-                echo "Download failed. No file for your Router's architecture. Attempt $((attempts + 1)) of $max_attempts failed."
+            if [ \$? -ne 0 ]; then
+                echo "Download failed. No file for your Router's architecture. Attempt \$((attempts + 1)) of \$max_attempts failed."
             else
                 # Executing chmod +x command only if wget is successful
                 chmod +x /tmp/tun2socks
@@ -154,11 +154,11 @@ before_start() {
         fi
 		
         attempts="\$((attempts + 1))"
-        echo "Retrying in 5 seconds... ($attempts/$max_attempts)"
+        echo "Retrying in 5 seconds... (\$attempts/\$max_attempts)"
         sleep 5
     done
 
-    echo "Failed to download /tmp/tun2socks after "\$max_attempts" attempts. Aborting."
+    echo "Failed to download /tmp/tun2socks after \$max_attempts attempts. Aborting."
     exit 1  # Exit the script with an error
 }
 start_service() {
@@ -169,16 +169,16 @@ start_service() {
         sleep 1
         timeout="\$((timeout - 1))"
         
-        echo "Current timeout value: $timeout"  # Debugging line
+        echo "Current timeout value: "\$timeout""  # Debugging line
 
-        if [ "$timeout" -le 0 ]; then
+        if [ \$timeout -le 0 ]; then
             echo "/tmp/tun2socks not found after 30 seconds. Try manually restarting tun2socks service. Exiting."
             break  # Exit the loop when timeout reaches 0
         fi
     done
 
     # After the loop, check if it exited due to timeout reaching 0
-    if [ "$timeout" -le 0 ]; then
+    if [ \$timeout -le 0 ]; then
         exit 1
     fi
 	
@@ -192,15 +192,33 @@ start_service() {
     ip route add "$OUTLINEIP" via "$DEFGW" #Adds route to OUTLINE Server
 	echo 'route to Outline Server added'
     echo "tun2socks is working!"
-	sleep 1
-	# Add route for Antifilter BGP
-    ip route add 45.154.73.71 dev tun1
-    echo 'route to Antifilter BGP server through Shadowsocks added'
+}
+
+after_start() {
+    attempts=0
+    max_attempts=5
+
+    while [ "\$attempts" -lt "\$max_attempts" ]; do
+        if ip link show tun1 | grep -q "state UP"; then
+            ip route add 45.154.73.71 dev tun1
+            echo 'Route to Antifilter BGP server through Shadowsocks added'
+            return 0  # Exit the function successfully
+        else
+            echo "tun1 interface is not up yet. Attempt \$((attempts + 1)) of \$max_attempts. Retrying in 5 seconds..."
+        fi
+
+        attempts=\$((attempts + 1))
+        sleep 1
+    done
+
+    echo "Failed to bring up tun1 interface after \$max_attempts attempts. Aborting."
+    exit 1  # Exit the script with an error
 }
 
 boot() {
     # This gets run at boot-time.
     start
+	after_start
 }
 
 shutdown() {
@@ -212,7 +230,7 @@ stop_service() {
     service_stop /tmp/tun2socks
     ip route del "$OUTLINEIP" via "$DEFGW" #Removes route to OUTLINE Server
 	ip route del 45.154.73.71 dev tun1
-	#echo 'route to Antifilter BGP server through Shadowsocks deleted'
+	echo 'route to Antifilter BGP server through Shadowsocks deleted'
     echo "tun2socks has stopped!"
 }
 
@@ -221,6 +239,7 @@ reload_service() {
     sleep 3s
     echo "tun2socks restarted!"
     start
+	after_start
 }
 EOL
 start() {
