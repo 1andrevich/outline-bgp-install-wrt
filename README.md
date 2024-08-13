@@ -9,10 +9,10 @@ First, get the script and make it executable:
     wget https://raw.githubusercontent.com/1andrevich/outline-bgp-install-wrt/main/install_outline.sh -O install_outline.sh
     chmod +x install_outline.sh
 
-Check if you have kmod-tun and ip-full installed, if not run:
+Check if you have kmod-tun, bird2c and ip-full installed, if not run:
 
     opkg update
-    opkg install kmod-tun ip-full
+    opkg install kmod-tun ip-full bird2c
 
 **Then run the script:**
 You'll need at least **10 MiB of free space** on /
@@ -21,9 +21,7 @@ You'll need at least **10 MiB of free space** on /
 
 You'll be asked for:
 
- - your Outline Server IP
  - Outline (Shadowsocks) config in "ss://base64coded@HOST:PORT" format
- - If you want to use Outline (shadowsocks) as your default gateway (y/n)
 
 **If you don't have enough free space** on / , you can install executable to RAM (You'll need **up to** **35 MiB** of RAM):
 
