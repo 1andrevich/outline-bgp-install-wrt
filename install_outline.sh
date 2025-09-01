@@ -50,7 +50,7 @@ fi
 # Step 4: Check for tun2socks then download tun2socks binary from GitHub (to RAM)
 if [ ! -f "/tmp/tun2socks*" ]; then
 ARCH=$(grep "OPENWRT_ARCH" /etc/os-release | awk -F '"' '{print $2}')
-wget https://github.com/1andrevich/outline-install-wrt/releases/download/v2.5.1/tun2socks-linux-$ARCH -O /tmp/tun2socks
+wget https://github.com/1andrevich/outline-install-wrt/releases/latest/download/tun2socks-linux-$ARCH -O /tmp/tun2socks
  # Check wget's exit status
     if [ $? -ne 0 ]; then
         echo -e "\033[0;31m Download failed. No file for your Router's architecture \033[0m"
@@ -299,17 +299,17 @@ else
 fi	
 
 # Diagnostics: Run traceroute to facebook.com and capture the output
-ping_output_fb=$( ping -4 -w2 facebook.com)
-ping_output_yt=$( ping -4 -w2 youtube.com)
-ping_output_tw=$( ping -4 -w2 x.com)
+#ping_output_fb=$( ping -4 -w2 facebook.com)
+#ping_output_yt=$( ping -4 -w2 youtube.com)
+#ping_output_tw=$( ping -4 -w2 x.com)
 
 # Display the traceroute output to the user
-echo "Ping to facebook.com:"
-echo "$ping_output_fb"
-echo "Ping to youtube.com:"
-echo "$ping_output_yt"
-echo "Ping to x.com (Twitter):"
-echo "$ping_output_tw"
-echo "If time is less then 5ms it means that tunneling is working"
+#echo "Ping to facebook.com:"
+#echo "$ping_output_fb"
+#echo "Ping to youtube.com:"
+#echo "$ping_output_yt"
+#echo "Ping to x.com (Twitter):"
+#echo "$ping_output_tw"
+#echo "If time is less then 5ms it means that tunneling is working"
 
 echo -e "\033[0;32m Script has finished working \033[0m"
